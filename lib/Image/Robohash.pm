@@ -6,7 +6,7 @@ no  warnings 'portable';
 use Digest::SHA qw/sha512_hex/;
 use Graphics::Magick;
 
-our $VERSION = 0.01;
+our $VERSION = 0.02;
 
 has app_path      => ( isa => 'Str', is => 'rw', default => '.'    );
 
@@ -55,12 +55,12 @@ has client_set  => (
   lazy          => 1,
   default       => sub {
     my $self    =  shift;
-    my $req_set = lc $self->req_set;
-    $req_set    = 'set1' unless $self->is_valid_set( $req_set );
+    my $req_set =  lc $self->req_set;
+    $req_set    =  'set1' unless $self->is_valid_set( $req_set );
     if ($req_set eq 'set1') {
-	  $req_set  = $self->colors->[ $self->hash_array->[0] % $self->colors_count ]
-	}
-	return $req_set||'';
+      $req_set  =  $self->colors->[ $self->hash_array->[0] % $self->colors_count ]
+    }
+    return $req_set||'';
   }
 );
 
@@ -71,11 +71,22 @@ has hex_digest => (
   default      => sub { sha512_hex $_[0]->req_string }
 );
 
-has hash_array => (
-  isa          => 'ArrayRef[Str]',
-  is           => 'rw',
-  lazy         => 1,
-  builder      => '_build_hash_array'
+has hash_array     => (
+  isa              => 'ArrayRef[Str]',
+  is               => 'rw',
+  lazy             => 1,
+  default          => sub {
+    my $self       =  shift;
+    my $hex_digest =  $self->hex_digest;
+    my $block_size =  int( length( $hex_digest ) / $self->hash_count );
+
+    my @hashes     =  map {
+      my $start    =  $_ * $block_size - $block_size;
+      hex substr( $hex_digest, $start, $block_size );
+    } 1..$self->hash_count;
+
+    return \@hashes;
+  }
 );
 
 has dir_count  => (
@@ -85,7 +96,7 @@ has dir_count  => (
   default      => sub {
     my $self   =  shift;
     opendir (my $dh, $self->app_path) or die "Cannot open dir $!";
-    my @dirs   = grep -d $self->app_path."/$_", grep !/\A\.\.?\Z/, readdir $dh;
+    my @dirs   =  grep -d $self->app_path."/$_", grep !/\A\.\.?\Z/, readdir $dh;
     closedir $dh;
     return scalar @dirs;
   }
@@ -107,19 +118,6 @@ sub validate_parameters {
   }
 }
 
-sub _build_hash_array {
-  my $self       = shift;
-  my $count      = $self->hash_count;
-  my $block_size = int( length( $self->hex_digest ) / $count);
-
-  my @hashes     = map {
-    my $start    = ( $_ + 1 ) * $block_size - $block_size;
-    hex substr( $self->hex_digest, $start, $block_size );
-  } 0..$count-1;
-
-  return \@hashes;
-}
-
 has lucky_robot_images => (
   isa          => 'ArrayRef[Str]',
   is           => 'rw',
@@ -135,9 +133,7 @@ has lucky_robot_images => (
       }
     }
 
-    my @sorted =
-      map  { $ranked{$_} }
-      sort { $a cmp $b } keys %ranked;
+    my @sorted = map { $ranked{$_} } sort keys %ranked;
 
     return \@sorted;
   }
@@ -175,9 +171,9 @@ has lucky_background_image => (
   is           => 'rw',
   lazy         => 1,
   default      => sub {
-    my $self   = shift;
+    my $self   =  shift;
     return '' unless my $bgset = $self->req_bgset;
-    my $dir    = $self->app_path."/$bgset";
+    my $dir    =  $self->app_path."/$bgset";
     return '' unless $self->is_valid_bgset( $bgset ) && -d $dir;
 
     opendir (my $dh,$dir);
@@ -185,7 +181,7 @@ has lucky_background_image => (
     closedir $dh;
 
     my $lucky = $pngs[ $self->hash_array->[ $self->hash_index_bg ] % scalar @pngs ];
-    $lucky = join('/',$self->app_path,$bgset,$lucky);
+    join('/',$self->app_path,$bgset,$lucky);
   }
 );
 
@@ -197,7 +193,7 @@ has image      => (
     my $self   =  shift;
     my $img    =  Graphics::Magick->new;
 
-    if (my $bg = $self->lucky_background_image) {
+    if (my $bg =  $self->lucky_background_image) {
       $img->Read("png:$bg");
       $img->Resize(geometry => '1024x1024');
     } else {
@@ -236,7 +232,7 @@ Image::Robohash - Headless library to generate Robohash images
 
 	use Image::Robohash;
 
-	my $robot         =  Image::Robohash->new(
+	my $robot       =  Image::Robohash->new(
 		app_path      => '/path/to/robohash_package',
 		req_string    => $string,
 		req_set       => 'set1',

@@ -21,4 +21,4 @@ requires:
   MooseX::StrictConstructor: 0
   namespace::autoclean: 0
   warnings: 0
-version: 0.01
+version: 0.02
